@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 int parseInt(char *src, long *dest)
 {
@@ -26,32 +27,26 @@ int isValidTime(int time)
     return EXIT_SUCCESS;
 }
 
-int createAtoms(char *name, int count, pid_t parentPid)
-{
-    pid_t pid;
-
-    for (int i = 1; i <= count; i++)
-    {
-        pid = getpid();
-
-        if (pid != parentPid)
-        {
-            return EXIT_SUCCESS;
-        }
-
-        pid = fork();
-        if (pid == 0) // only child
-        {
-            printf("Created %s %d\n", name, i);
-            break;
-        }
-        else if (pid < 0) // error occured
-        {
-            return EXIT_FAILURE;
-        }
-    }
-    return EXIT_SUCCESS;
+void mysleep(int max){
+    int time = rand()%max+1;
+    usleep(time);
+    return;
 }
+int handleOxygen(int id, int ti)
+{
+    mysleep(ti);
+    printf("A: O %d: going to queue\n", id);
+    return 0;
+}
+
+int handleHydrogen(int id, int ti)
+{
+    mysleep(ti);
+    printf("A: H %d: going to queue\n", id);
+    return 0;
+}
+
+sem_t *semaphorOxy;
 
 int main(int argc, char **argv)
 {
@@ -61,9 +56,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    pid_t pid;
+    pid_t pidParent, pid;
     long no, nh, ti, tb;
     int errOccurred = 0;
+    pidParent = getpid();
 
     errOccurred += parseInt(argv[1], &no);
     errOccurred += parseInt(argv[2], &nh);
@@ -76,19 +72,49 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    pid = getpid();
-
-    errOccurred = createAtoms("NO", no, pid);
-    if (errOccurred == EXIT_FAILURE)
+    for (int i = 1; i <= no; i++)
     {
-        fprintf(stderr, "Error while creating oxygen!");
-        exit(EXIT_FAILURE);
+        pid = getpid();
+
+        if (pid != pidParent)
+        {
+            break;
+        }
+
+        pid = fork();
+        if (pid == 0) // only child
+        {
+            printf("A: O %d: started\n", i);
+            handleOxygen(i, ti);
+            break;
+        }
+        else if (pid < 0) // error occured
+        {
+            fprintf(stderr, "Error while creating oxygen!");
+            return EXIT_FAILURE;
+        }
     }
 
-    errOccurred = createAtoms("NH", nh, pid);
-    if (errOccurred == EXIT_FAILURE)
+    for (int i = 1; i <= nh; i++)
     {
-        fprintf(stderr, "Error while creating hydrogen!");
-        exit(EXIT_FAILURE);
+        pid = getpid();
+
+        if (pid != pidParent)
+        {
+            break;
+        }
+
+        pid = fork();
+        if (pid == 0) // only child
+        {
+            printf("A: H %d: started\n", i);
+            handleHydrogen(i, ti);
+            break;
+        }
+        else if (pid < 0) // error occured
+        {
+            fprintf(stderr, "Error while creating hydrogen!");
+            return EXIT_FAILURE;
+        }
     }
 }
