@@ -11,12 +11,10 @@
 
 sem_t *semaphorOxy = NULL;
 sem_t *semaphorHyd = NULL;
+sem_t *writeSem = NULL;
 FILE *outF;
 int *row = NULL;
 
-void removeSharedVar(int *var)
-{
-}
 int parseInt(char *src, long *dest)
 {
     char *ptr;
@@ -43,37 +41,48 @@ void clear()
 {
     sem_close(semaphorOxy);
     sem_close(semaphorHyd);
+    sem_close(writeSem);
     sem_unlink("/xmasek19.IOS.Projekt2.O");
     sem_unlink("/xmasek19.IOS.Projekt2.H");
+    sem_unlink("/xmasek19.IOS.Projekt2.Write");
+    fclose(stdout);
 }
 
 int init()
 {
-    outF = fopen("proj2.out", "w");
+    // outF = fopen("proj2.out", "w");
     if ((semaphorOxy = sem_open("/xmasek19.IOS.Projekt2.O", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
     {
-        printf("Semphore O not created\n");
+        printf("Semaphore O not created\n");
         return EXIT_FAILURE;
     }
     if ((semaphorHyd = sem_open("/xmasek19.IOS.Projekt2.H", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
     {
-        printf("Semphore H not created\n");
+        printf("Semaphore H not created\n");
+        return EXIT_FAILURE;
+    }
+    if ((writeSem = sem_open("/xmasek19.IOS.Projekt2.Write", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
+    {
+        printf("Semaphore write not created\n");
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
 
+// FIX ME returns same time
 void mysleep(int max)
 {
-    int time = rand() % max + 1;
+    int time = (rand() % max) + 1;
+    // printf("Time: %d!\n",time);
     usleep(time);
     return;
 }
 void handleOxygen(int id, int ti, int tb)
 {
     mysleep(ti);
-    *row += 1;
-    printf("%d: O %d: going to queue\n", *row, id);
+    sem_wait(writeSem);
+    printf("%d: O %d: going to queue\n", *row += 1, id);
+    sem_post(writeSem);
     sem_wait(semaphorOxy);
     exit(0);
 }
@@ -81,8 +90,9 @@ void handleOxygen(int id, int ti, int tb)
 void handleHydrogen(int id, int ti, int tb)
 {
     mysleep(ti);
-    *row += 1;
-    printf("%d: H %d: going to queue\n", *row, id);
+    sem_wait(writeSem);
+    printf("%d: H %d: going to queue\n", *row += 1, id);
+    sem_post(writeSem);
     sem_wait(semaphorHyd);
     exit(0);
 }
@@ -90,6 +100,9 @@ void handleHydrogen(int id, int ti, int tb)
 int main(int argc, char **argv)
 {
     clear();
+    freopen("proj2.out", "w", stdout);
+    setbuf(stdout, NULL);
+
     if (argc != 5)
     {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
@@ -119,51 +132,37 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 1; i <= no; i++)
-    {
-        pid = getpid();
-
-        if (pid != pidParent)
-        {
-            break;
-        }
-
-        pid = fork();
-        if (pid == 0) // only child
-        {
-            *row += 1;
-            printf("%d: O %d: started\n", *row, i);
-            handleOxygen(i, ti, tb);
-            break;
-        }
-        else if (pid < 0) // error occured
-        {
-            fprintf(stderr, "Error while creating oxygen!");
-            return EXIT_FAILURE;
-        }
-    }
-
     for (int i = 1; i <= nh; i++)
     {
-        pid = getpid();
-
-        if (pid != pidParent)
-        {
-            break;
-        }
-
         pid = fork();
         if (pid == 0) // only child
         {
-            *row += 1;
-            printf("%d: H %d: started\n", *row, i);
+            sem_wait(writeSem);
+            printf("%d: H %d: started\n", *row += 1, i);
+            sem_post(writeSem);
             handleHydrogen(i, ti, tb);
-            break;
         }
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating hydrogen!");
             clear();
+            return EXIT_FAILURE;
+        }
+    }
+
+    for (int i = 1; i <= no; i++)
+    {
+        pid = fork();
+        if (pid == 0) // only child
+        {
+            sem_wait(writeSem);
+            printf("%d: O %d: started\n", *row += 1, i);
+            sem_post(writeSem);
+            handleOxygen(i, ti, tb);
+        }
+        else if (pid < 0) // error occured
+        {
+            fprintf(stderr, "Error while creating oxygen!");
             return EXIT_FAILURE;
         }
     }
@@ -174,8 +173,8 @@ int main(int argc, char **argv)
     printf("No O start: %d\n", num);
 
     sem_post(semaphorOxy);
-    // sem_post(semaphorHyd);
-    // sem_post(semaphorHyd);
+    sem_post(semaphorHyd);
+    sem_post(semaphorHyd);
 
     sem_getvalue(semaphorOxy, &num);
     printf("No O end: %d\n", num);
@@ -185,8 +184,7 @@ int main(int argc, char **argv)
     printf("Row: %d\n", *row);
 
     munmap(row, sizeof *row);
-    printf("end");
     clear();
-    removeSharedVar(row);
+    printf("End\n");
     exit(0);
 }
