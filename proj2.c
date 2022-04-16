@@ -114,7 +114,6 @@ int main(int argc, char **argv)
     pidParent = getpid();
     row = map(row);
     *row = 0;
-
     if (init())
     {
         exit(EXIT_FAILURE);
