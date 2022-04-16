@@ -4,7 +4,7 @@
 int parseInt(char *src, long *dest){
     char *ptr;
     *dest = strtol(src,&ptr,10);
-    printf("%ld \n",*dest);
+
     if (ptr[0] != '\0'){
         fprintf(stderr, "Unexpected character: %s\n", ptr);
         return 1;
@@ -29,18 +29,15 @@ int main(int argc, char **argv)
     }
 
     long no, nh, ti, tb;
-    if(parseInt(argv[1], &no)){
-        return 1;
-    }
-    if (parseInt(argv[2], &nh)){
-        return 1;
-    }
-    if (parseInt(argv[3], &ti) || !isValidTime(ti))
-    {
-        return 1;
-    }
-    if (parseInt(argv[4], &tb) || !isValidTime(tb))
-    {
+    int errorOccurred = 0;
+    
+    errorOccurred += parseInt(argv[1], &no);
+    errorOccurred += parseInt(argv[2], &nh);
+    errorOccurred += parseInt(argv[3], &ti);
+    errorOccurred += parseInt(argv[4], &tb);
+    errorOccurred += !isValidTime(ti);
+    errorOccurred += !isValidTime(tb);
+    if (errorOccurred){
         return 1;
     }
 }
