@@ -26,28 +26,33 @@ int isValidTime(int time)
     return EXIT_SUCCESS;
 }
 
-int createAtoms(char *name, int count, pid_t pid)
+int createAtoms(char *name, int count, pid_t parentPid)
 {
-    printf("Count: %d\n", count);
-    if (pid > 0)
+    pid_t pid;
+
+    for (int i = 1; i <= count; i++)
     {
-        for (int i = 1; i <= count; i++)
+        pid = getpid();
+
+        if (pid != parentPid)
         {
-            pid = fork();
-            printf("ID: %d\n", pid);
-            if (pid == 0) // only child
-            {
-                printf("Created %s %d\n", name, i);
-            }
-            else if (pid < 0) // error occured
-            {
-                return EXIT_FAILURE;
-            }
+            return EXIT_SUCCESS;
+        }
+
+        pid = fork();
+        if (pid == 0) // only child
+        {
+            printf("Created %s %d\n", name, i);
+            break;
+        }
+        else if (pid < 0) // error occured
+        {
+            return EXIT_FAILURE;
         }
     }
     return EXIT_SUCCESS;
 }
-int mainProcess = 1;
+
 int main(int argc, char **argv)
 {
     if (argc != 5)
@@ -73,21 +78,17 @@ int main(int argc, char **argv)
 
     pid = getpid();
 
-    if (mainProcess)
+    errOccurred = createAtoms("NO", no, pid);
+    if (errOccurred == EXIT_FAILURE)
     {
-        mainProcess=0;
-        errOccurred = createAtoms("NO", no, pid);
-        if (errOccurred == EXIT_FAILURE)
-        {
-            fprintf(stderr, "Error while creating oxygen!");
-            exit(EXIT_FAILURE);
-        }
+        fprintf(stderr, "Error while creating oxygen!");
+        exit(EXIT_FAILURE);
+    }
 
-        errOccurred = createAtoms("NH", nh, pid);
-        if (errOccurred == EXIT_FAILURE)
-        {
-            fprintf(stderr, "Error while creating hydrogen!");
-            exit(EXIT_FAILURE);
-        }
+    errOccurred = createAtoms("NH", nh, pid);
+    if (errOccurred == EXIT_FAILURE)
+    {
+        fprintf(stderr, "Error while creating hydrogen!");
+        exit(EXIT_FAILURE);
     }
 }
