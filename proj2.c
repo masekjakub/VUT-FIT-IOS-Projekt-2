@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#define map(var) (mmap(NULL, sizeof(*var), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 sem_t *semaphorOxy = NULL;
@@ -117,7 +118,7 @@ int main(int argc, char **argv)
 
     pid_t pidParent, pid;
     pidParent = getpid();
-    row = mmap(NULL, sizeof(*row), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    row = map(row);
     *row = 0;
     
     if (init())
