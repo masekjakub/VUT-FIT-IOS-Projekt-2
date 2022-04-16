@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <semaphore.h>
+#include <fcntl.h>
+
+sem_t *semaphorOxy = NULL;
+sem_t *semaphorHyd = NULL;
+FILE *outF;
 
 int parseInt(char *src, long *dest)
 {
@@ -26,40 +31,63 @@ int isValidTime(int time)
     fprintf(stderr, "Invalid time, expected: 0-1000, got: %d.\n", time);
     return EXIT_SUCCESS;
 }
+void clear()
+{
+    sem_close(semaphorOxy);
+    sem_close(semaphorHyd);
+    sem_unlink("/xmasek19.IOS.Projekt2.O");
+    sem_unlink("/xmasek19.IOS.Projekt2.H");
+}
 
-void mysleep(int max){
-    int time = rand()%max+1;
+int init()
+{
+    outF = fopen("proj2.out","w");
+    if ((semaphorOxy = sem_open("/xmasek19.IOS.Projekt2.O", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
+    {
+        printf("Semphore O not created\n");
+        return EXIT_FAILURE;
+    }
+    if ((semaphorHyd = sem_open("/xmasek19.IOS.Projekt2.H", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
+    {
+        printf("Semphore H not created\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+void mysleep(int max)
+{
+    int time = rand() % max + 1;
     usleep(time);
     return;
 }
-int handleOxygen(int id, int ti)
+void handleOxygen(int id, int ti, int tb)
 {
     mysleep(ti);
     printf("A: O %d: going to queue\n", id);
-    return 0;
+    sem_wait(semaphorOxy);
+    exit(0);
 }
 
-int handleHydrogen(int id, int ti)
+void handleHydrogen(int id, int ti, int tb)
 {
     mysleep(ti);
     printf("A: H %d: going to queue\n", id);
-    return 0;
+    sem_wait(semaphorHyd);
+    exit(0);
 }
-
-sem_t *semaphorOxy;
 
 int main(int argc, char **argv)
 {
+    clear();
     if (argc != 5)
     {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
         return 1;
     }
 
-    pid_t pidParent, pid;
     long no, nh, ti, tb;
     int errOccurred = 0;
-    pidParent = getpid();
 
     errOccurred += parseInt(argv[1], &no);
     errOccurred += parseInt(argv[2], &nh);
@@ -70,6 +98,13 @@ int main(int argc, char **argv)
     if (errOccurred)
     {
         return EXIT_FAILURE;
+    }
+
+    pid_t pidParent, pid;
+    pidParent = getpid();
+    if (init())
+    {
+        exit(EXIT_FAILURE);
     }
 
     for (int i = 1; i <= no; i++)
@@ -85,7 +120,7 @@ int main(int argc, char **argv)
         if (pid == 0) // only child
         {
             printf("A: O %d: started\n", i);
-            handleOxygen(i, ti);
+            handleOxygen(i, ti, tb);
             break;
         }
         else if (pid < 0) // error occured
@@ -108,13 +143,34 @@ int main(int argc, char **argv)
         if (pid == 0) // only child
         {
             printf("A: H %d: started\n", i);
-            handleHydrogen(i, ti);
+            handleHydrogen(i, ti, tb);
             break;
         }
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating hydrogen!");
+            clear();
             return EXIT_FAILURE;
         }
     }
+
+    sleep(1);
+    int num;
+    sem_getvalue(semaphorOxy, &num);
+    printf("No O start: %d\n", num);
+
+    sem_post(semaphorOxy);
+    // sem_post(semaphorHyd);
+    // sem_post(semaphorHyd);
+
+    sem_getvalue(semaphorOxy, &num);
+    printf("No O end: %d\n", num);
+    sleep(1);
+    sem_getvalue(semaphorOxy, &num);
+    printf("No O end: %d\n", num);
+
+
+    printf("end");
+    clear();
+    exit(0);
 }
