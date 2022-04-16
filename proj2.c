@@ -1,14 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <pthread.h>
+#define map(var) (mmap(NULL, sizeof(*var), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 sem_t *semaphorOxy = NULL;
 sem_t *semaphorHyd = NULL;
 FILE *outF;
+int *row = NULL;
 
+void createSharedVar(int *var)
+{
+    
+}
+
+void removeSharedVar(int *var){
+    
+}
 int parseInt(char *src, long *dest)
 {
     char *ptr;
@@ -64,7 +78,8 @@ void mysleep(int max)
 void handleOxygen(int id, int ti, int tb)
 {
     mysleep(ti);
-    printf("A: O %d: going to queue\n", id);
+    *row += 1;
+    printf("%d: O %d: going to queue\n", *row, id);
     sem_wait(semaphorOxy);
     exit(0);
 }
@@ -72,7 +87,8 @@ void handleOxygen(int id, int ti, int tb)
 void handleHydrogen(int id, int ti, int tb)
 {
     mysleep(ti);
-    printf("A: H %d: going to queue\n", id);
+    *row += 1;
+    printf("%d: H %d: going to queue\n", *row, id);
     sem_wait(semaphorHyd);
     exit(0);
 }
@@ -102,6 +118,9 @@ int main(int argc, char **argv)
 
     pid_t pidParent, pid;
     pidParent = getpid();
+    row = map(row);
+    *row = 0;
+    
     if (init())
     {
         exit(EXIT_FAILURE);
@@ -119,7 +138,8 @@ int main(int argc, char **argv)
         pid = fork();
         if (pid == 0) // only child
         {
-            printf("A: O %d: started\n", i);
+            *row += 1;
+            printf("%d: O %d: started\n", *row, i);
             handleOxygen(i, ti, tb);
             break;
         }
@@ -142,7 +162,8 @@ int main(int argc, char **argv)
         pid = fork();
         if (pid == 0) // only child
         {
-            printf("A: H %d: started\n", i);
+            *row += 1;
+            printf("%d: H %d: started\n", *row, i);
             handleHydrogen(i, ti, tb);
             break;
         }
@@ -168,9 +189,11 @@ int main(int argc, char **argv)
     sleep(1);
     sem_getvalue(semaphorOxy, &num);
     printf("No O end: %d\n", num);
+    printf("Row: %d\n", *row);
 
-
+    munmap(row, sizeof *row);
     printf("end");
     clear();
+    removeSharedVar(row);
     exit(0);
 }
