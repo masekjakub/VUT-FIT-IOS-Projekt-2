@@ -6,7 +6,9 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pthread.h>
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 sem_t *semaphorOxy = NULL;
 sem_t *semaphorHyd = NULL;
 FILE *outF;
@@ -75,8 +77,8 @@ void mysleep(int max)
 void handleOxygen(int id, int ti, int tb)
 {
     mysleep(ti);
-    row++;
-    printf("%d: O %d: going to queue\n", row, id);
+    *row += 1;
+    printf("%d: O %d: going to queue\n", *row, id);
     sem_wait(semaphorOxy);
     exit(0);
 }
@@ -84,8 +86,8 @@ void handleOxygen(int id, int ti, int tb)
 void handleHydrogen(int id, int ti, int tb)
 {
     mysleep(ti);
-    row++;
-    printf("%d: H %d: going to queue\n", row, id);
+    *row += 1;
+    printf("%d: H %d: going to queue\n", *row, id);
     sem_wait(semaphorHyd);
     exit(0);
 }
@@ -115,8 +117,8 @@ int main(int argc, char **argv)
 
     pid_t pidParent, pid;
     pidParent = getpid();
-    mmap(NULL, sizeof *row, PROT_READ | PROT_WRITE, MAP_SHARED, -1, 0);
-    row = 0;
+    row = mmap(NULL, sizeof(*row), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    *row = 0;
     
     if (init())
     {
@@ -135,8 +137,8 @@ int main(int argc, char **argv)
         pid = fork();
         if (pid == 0) // only child
         {
-            row++;
-            printf("%d: O %d: started\n", row, i);
+            *row += 1;
+            printf("%d: O %d: started\n", *row, i);
             handleOxygen(i, ti, tb);
             break;
         }
@@ -159,8 +161,8 @@ int main(int argc, char **argv)
         pid = fork();
         if (pid == 0) // only child
         {
-            row++;
-            printf("%d: H %d: started\n", row, i);
+            *row += 1;
+            printf("%d: H %d: started\n", *row, i);
             handleHydrogen(i, ti, tb);
             break;
         }
@@ -186,7 +188,7 @@ int main(int argc, char **argv)
     sleep(1);
     sem_getvalue(semaphorOxy, &num);
     printf("No O end: %d\n", num);
-    printf("Row: %d\n", row);
+    printf("Row: %d\n", *row);
 
     munmap(row, sizeof *row);
     printf("end");
