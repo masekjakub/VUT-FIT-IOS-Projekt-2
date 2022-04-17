@@ -122,16 +122,18 @@ void handleOxygen(int id, int ti, int tb)
     printf("%d: O %d: going to queue\n", shared->row += 1, id);
     sem_post(writeSem);
 
+
     //wait for creating molecule
     sem_wait(oxySemaphore);
-
     if (shared->nh - shared->numOfHyd < 2)
     {
         sem_wait(writeSem);
         printf("%d: O %d: not enough H\n", shared->row += 1, id);
         sem_post(writeSem);
+        sem_post(oxySemaphore);
         exit(0);
     }
+
 
     sem_wait(writeSem);
     printf("%d: O %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
@@ -176,6 +178,7 @@ void handleHydrogen(int id, int ti)
         sem_wait(writeSem);
         printf("%d: H %d: not enough O or H\n", shared->row += 1, id);
         sem_post(writeSem);
+        sem_post(hydSemaphore);
         exit(0);
     }
 
@@ -198,10 +201,10 @@ void handleHydrogen(int id, int ti)
 int main(int argc, char **argv)
 {
     clear();
-
     if (argc != 5)
     {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
+        clear();
         return 1;
     }
 
@@ -217,11 +220,13 @@ int main(int argc, char **argv)
     if (errOccurred)
     {
         return EXIT_FAILURE;
+        clear();
     }
 
     if (init())
     {
         exit(EXIT_FAILURE);
+        clear();
     }
 
     pid_t pid;
@@ -256,10 +261,15 @@ int main(int argc, char **argv)
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating oxygen!");
+            clear();
             return EXIT_FAILURE;
         }
     }
 
+    //wait for all kids to die
+    for (int i=0;i<no+nh;i++){
+        wait(NULL);
+    }
     clear();
     exit(0);
 }
