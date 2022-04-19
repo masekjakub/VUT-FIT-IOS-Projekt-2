@@ -48,6 +48,7 @@ int isValidTime(int time)
     fprintf(stderr, "Invalid time, expected: 0-1000, got: %d.\n", time);
     return EXIT_SUCCESS;
 }
+
 void clear()
 {
     munmap(shared, sizeof *shared);
@@ -101,7 +102,6 @@ int init()
     return EXIT_SUCCESS;
 }
 
-// FIX ME returns same time
 void mysleep(int max)
 {
     if (max == 0)
@@ -114,7 +114,6 @@ void mysleep(int max)
     return;
 }
 
-// sync print
 void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
 {
     sem_wait(writeSem);
@@ -134,11 +133,10 @@ void syncPrintMolecule(char string[], struct shared_t *shared, int atomID)
 void handleOxygen(int id, int TI, int TB)
 {
     syncPrintAtom("%d: O %d: started\n", shared, id);
-
     mysleep(TI);
     syncPrintAtom("%d: O %d: going to queue\n", shared, id);
 
-    // wait for creating molecule
+    // wait while another molecule is being created
     sem_wait(oxySemaphore);
     if (shared->NH - shared->NoHUsed < 2)
     {
@@ -147,21 +145,24 @@ void handleOxygen(int id, int TI, int TB)
         exit(0);
     }
 
+    // create molecule
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
     mysleep(TB);
 
-    // inform H (molecule created)
+    // inform two hydrogens (molecule created)
     sem_post(moleculeDoneSemO);
     sem_post(moleculeDoneSemO);
 
     syncPrintMolecule("%d: O %d: molecule %d created\n", shared, id);
 
-    // wait for H ack molecule created
+    // wait for hydrogens to ack that molecule is created
     sem_wait(moleculeDoneSemH);
     sem_wait(moleculeDoneSemH);
 
     shared->moleculeID++;
     shared->NoOUsed++;
+
+    // let 1 oxygen and 2 hydrogens to create another molecule
     sem_post(hydSemaphore);
     sem_post(hydSemaphore);
     sem_post(oxySemaphore);
@@ -171,10 +172,10 @@ void handleOxygen(int id, int TI, int TB)
 void handleHydrogen(int id, int TI)
 {
     syncPrintAtom("%d: H %d: started\n", shared, id);
-
     mysleep(TI);
     syncPrintAtom("%d: H %d: going to queue\n", shared, id);
 
+    // wait while another molecule is being created
     sem_wait(hydSemaphore);
     if (shared->NH - shared->NoHUsed < 2 || shared->NO == shared->NoOUsed)
     {
@@ -183,14 +184,15 @@ void handleHydrogen(int id, int TI)
         exit(0);
     }
 
+    // create molecule
     syncPrintMolecule("%d: H %d: creating molecule %d \n", shared, id);
 
     sem_wait(moleculeDoneSemO);
     syncPrintMolecule("%d: H %d: molecule %d created\n", shared, id);
 
     shared->NoHUsed++;
+    // ack for oxygen that molecule is created
     sem_post(moleculeDoneSemH);
-
     exit(0);
 }
 
@@ -231,10 +233,11 @@ int main(int argc, char **argv)
     shared->NO = NO;
     shared->NH = NH;
 
+    // hydrogen generator
     for (int id = 1; id <= NH; id++)
     {
         pid = fork();
-        if (pid == 0)
+        if (pid == 0) // child only
         {
             handleHydrogen(id, TI);
         }
@@ -246,10 +249,11 @@ int main(int argc, char **argv)
         }
     }
 
+    // oxygen generator
     for (int id = 1; id <= NO; id++)
     {
         pid = fork();
-        if (pid == 0) // only child
+        if (pid == 0) // child only
         {
             handleOxygen(id, TI, TB);
         }
