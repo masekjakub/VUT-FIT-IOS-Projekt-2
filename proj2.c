@@ -145,7 +145,6 @@ void handleOxygen(int id, int TI, int TB)
     }
 
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
-
     mysleep(TB);
 
     // inform H (molecule created)
