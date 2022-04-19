@@ -110,7 +110,6 @@ void mysleep(int max)
     }
     int time = (rand() % max) + 1;
     time *= 1000;
-    // fprintf(stderr,"Time: %d!\n",time);
     usleep(time);
     return;
 }
