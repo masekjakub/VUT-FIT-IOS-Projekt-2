@@ -17,19 +17,17 @@ sem_t *moleculeDoneSemO = NULL;
 
 struct shared_t
 {
-    int row;
+    int moleculeId;
     int numOfOxy;
     int numOfHyd;
-    int moleculeId;
+    int row;
     long NO;
     long NH;
-
 };
 
 struct shared_t *shared = NULL;
 
-    int
-    parseInt(char *src, long *dest)
+int parseInt(char *src, long *dest)
 {
     char *ptr;
     *dest = strtol(src, &ptr, 10);
@@ -108,52 +106,55 @@ int init()
 void mysleep(int max)
 {
     int time = (rand() % max) + 1;
-    //fprintf(stderr,"Time: %d!\n",time);
+    // fprintf(stderr,"Time: %d!\n",time);
     usleep(time);
     return;
 }
 
+// sync print
+void syncPrintAtom(char string[], int row, int atomID)
+{
+    sem_wait(writeSem);
+    printf(string, row, atomID);
+    sem_post(writeSem);
+}
+
+void syncPrintMolecule(char string[], int row, int atomID, int moleculeID)
+{
+    sem_wait(writeSem);
+    printf(string, row, atomID, moleculeID);
+    sem_post(writeSem);
+}
+
 void handleOxygen(int id, int TI, int TB)
 {
-    //created
-    sem_wait(writeSem);
-    printf("%d: O %d: started\n", shared->row += 1, id);
-    sem_post(writeSem);
+    // created
+    syncPrintAtom("%d: O %d: started\n", shared->row += 1, id);
 
-    //wait and join queue
+    // wait and join queue
     mysleep(TI);
-    sem_wait(writeSem);
-    printf("%d: O %d: going to queue\n", shared->row += 1, id);
-    sem_post(writeSem);
+    syncPrintAtom("%d: O %d: going to queue\n", shared->row += 1, id);
 
-
-    //wait for creating molecule
+    // wait for creating molecule
     sem_wait(oxySemaphore);
     if (shared->NH - shared->numOfHyd < 2)
     {
-        sem_wait(writeSem);
-        printf("%d: O %d: not enough H\n", shared->row += 1, id);
-        sem_post(writeSem);
+        syncPrintAtom("%d: O %d: not enough H\n", shared->row += 1, id);
         sem_post(oxySemaphore);
         exit(0);
     }
 
-
-    sem_wait(writeSem);
-    printf("%d: O %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
-    sem_post(writeSem);
+    syncPrintMolecule("%d: O %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
 
     mysleep(TB);
 
-    //inform H (molecule created)
+    // inform H (molecule created)
     sem_post(moleculeDoneSemO);
     sem_post(moleculeDoneSemO);
 
-    sem_wait(writeSem);
-    printf("%d: O %d: molecule %d created\n", shared->row += 1, id, shared->moleculeId);
-    sem_post(writeSem);
+    syncPrintMolecule("%d: O %d: molecule %d created\n", shared->row += 1, id, shared->moleculeId);
 
-    //wait for H created
+    // wait for H created
     sem_wait(moleculeDoneSemH);
     sem_wait(moleculeDoneSemH);
 
@@ -167,35 +168,24 @@ void handleOxygen(int id, int TI, int TB)
 
 void handleHydrogen(int id, int TI)
 {
-    sem_wait(writeSem);
-    printf("%d: H %d: started\n", shared->row += 1, id);
-    sem_post(writeSem);
+    syncPrintAtom("%d: H %d: started\n", shared->row += 1, id);
 
     mysleep(TI);
-    sem_wait(writeSem);
-    printf("%d: H %d: going to queue\n", shared->row += 1, id);
-    sem_post(writeSem);
+    syncPrintAtom("%d: H %d: going to queue\n", shared->row += 1, id);
 
     sem_wait(hydSemaphore);
-    if (shared->NH - shared->numOfHyd < 2 || shared->NO== shared->numOfOxy)
+    if (shared->NH - shared->numOfHyd < 2 || shared->NO == shared->numOfOxy)
     {
-        sem_wait(writeSem);
-        printf("%d: H %d: not enough O or H\n", shared->row += 1, id);
-        sem_post(writeSem);
+        syncPrintAtom("%d: H %d: not enough O or H\n", shared->row += 1, id);
         sem_post(hydSemaphore);
         exit(0);
     }
 
-    sem_wait(writeSem);
-    printf("%d: H %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
-    sem_post(writeSem);
-
+    syncPrintMolecule("%d: H %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
 
     sem_wait(moleculeDoneSemO);
-    sem_wait(writeSem);
-    printf("%d: H %d: molecule %d created\n", shared->row += 1, id, shared->moleculeId);
-    sem_post(writeSem);
-    
+    syncPrintMolecule("%d: H %d: molecule %d created\n", shared->row += 1, id, shared->moleculeId);
+
     shared->numOfHyd++;
     sem_post(moleculeDoneSemH);
 
@@ -237,7 +227,7 @@ int main(int argc, char **argv)
     shared = map(shared);
     shared->moleculeId = 1;
     shared->row = 0;
-    shared->NO= NO;
+    shared->NO = NO;
     shared->NH = NH;
 
     for (int i = 1; i <= NH; i++)
@@ -270,8 +260,9 @@ int main(int argc, char **argv)
         }
     }
 
-    //wait for all kids to die
-    for (int i=0;i<NO+NH;i++){
+    // wait for all kids to die
+    for (int i = 0; i < NO + NH; i++)
+    {
         wait(NULL);
     }
     clear();
