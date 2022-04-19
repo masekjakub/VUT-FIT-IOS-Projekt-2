@@ -105,6 +105,7 @@ int init()
 // FIX ME returns same time
 void mysleep(int max)
 {
+    if (max == 0)return;
     int time = (rand() % max) + 1;
     // fprintf(stderr,"Time: %d!\n",time);
     usleep(time);
