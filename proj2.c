@@ -15,15 +15,14 @@ sem_t *writeSem = NULL;
 sem_t *moleculeDoneSemH = NULL;
 sem_t *moleculeDoneSemO = NULL;
 
-FILE *outF;
 struct shared_t
 {
     int row;
     int numOfOxy;
     int numOfHyd;
     int moleculeId;
-    long no;
-    long nh;
+    long NO;
+    long NH;
 
 };
 
@@ -72,27 +71,31 @@ int init()
 {
     freopen("proj2.out", "w", stdout);
     setbuf(stdout, NULL);
-    
+
     if ((oxySemaphore = sem_open("/xmasek19.IOS.Projekt2.O", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
     {
         printf("Semaphore O not created\n");
         return EXIT_FAILURE;
     }
+
     if ((hydSemaphore = sem_open("/xmasek19.IOS.Projekt2.H", O_CREAT | O_EXCL, 0666, 2)) == SEM_FAILED)
     {
         printf("Semaphore H not created\n");
         return EXIT_FAILURE;
     }
+
     if ((writeSem = sem_open("/xmasek19.IOS.Projekt2.Write", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
     {
         printf("Semaphore write not created\n");
         return EXIT_FAILURE;
     }
+
     if ((moleculeDoneSemH = sem_open("/xmasek19.IOS.Projekt2.moleculeDoneSemH", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
     {
         printf("Semaphore moleculeDoneSemH not created\n");
         return EXIT_FAILURE;
     }
+
     if ((moleculeDoneSemO = sem_open("/xmasek19.IOS.Projekt2.moleculeDoneSemO", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
     {
         printf("Semaphore moleculeDoneSemO not created\n");
@@ -105,11 +108,12 @@ int init()
 void mysleep(int max)
 {
     int time = (rand() % max) + 1;
-    // printf("Time: %d!\n",time);
+    //fprintf(stderr,"Time: %d!\n",time);
     usleep(time);
     return;
 }
-void handleOxygen(int id, int ti, int tb)
+
+void handleOxygen(int id, int TI, int TB)
 {
     //created
     sem_wait(writeSem);
@@ -117,7 +121,7 @@ void handleOxygen(int id, int ti, int tb)
     sem_post(writeSem);
 
     //wait and join queue
-    mysleep(ti);
+    mysleep(TI);
     sem_wait(writeSem);
     printf("%d: O %d: going to queue\n", shared->row += 1, id);
     sem_post(writeSem);
@@ -125,7 +129,7 @@ void handleOxygen(int id, int ti, int tb)
 
     //wait for creating molecule
     sem_wait(oxySemaphore);
-    if (shared->nh - shared->numOfHyd < 2)
+    if (shared->NH - shared->numOfHyd < 2)
     {
         sem_wait(writeSem);
         printf("%d: O %d: not enough H\n", shared->row += 1, id);
@@ -139,7 +143,7 @@ void handleOxygen(int id, int ti, int tb)
     printf("%d: O %d: creating molecule %d \n", shared->row += 1, id, shared->moleculeId);
     sem_post(writeSem);
 
-    mysleep(tb);
+    mysleep(TB);
 
     //inform H (molecule created)
     sem_post(moleculeDoneSemO);
@@ -149,7 +153,7 @@ void handleOxygen(int id, int ti, int tb)
     printf("%d: O %d: molecule %d created\n", shared->row += 1, id, shared->moleculeId);
     sem_post(writeSem);
 
-    //wait for H craeted
+    //wait for H created
     sem_wait(moleculeDoneSemH);
     sem_wait(moleculeDoneSemH);
 
@@ -161,19 +165,19 @@ void handleOxygen(int id, int ti, int tb)
     exit(0);
 }
 
-void handleHydrogen(int id, int ti)
+void handleHydrogen(int id, int TI)
 {
     sem_wait(writeSem);
     printf("%d: H %d: started\n", shared->row += 1, id);
     sem_post(writeSem);
 
-    mysleep(ti);
+    mysleep(TI);
     sem_wait(writeSem);
     printf("%d: H %d: going to queue\n", shared->row += 1, id);
     sem_post(writeSem);
 
     sem_wait(hydSemaphore);
-    if (shared->nh - shared->numOfHyd < 2 || shared->no == shared->numOfOxy)
+    if (shared->NH - shared->numOfHyd < 2 || shared->NO== shared->numOfOxy)
     {
         sem_wait(writeSem);
         printf("%d: H %d: not enough O or H\n", shared->row += 1, id);
@@ -208,15 +212,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    long no, nh, ti, tb;
+    long NO, NH, TI, TB;
     int errOccurred = 0;
 
-    errOccurred += parseInt(argv[1], &no);
-    errOccurred += parseInt(argv[2], &nh);
-    errOccurred += parseInt(argv[3], &ti);
-    errOccurred += parseInt(argv[4], &tb);
-    errOccurred += !isValidTime(ti);
-    errOccurred += !isValidTime(tb);
+    errOccurred += parseInt(argv[1], &NO);
+    errOccurred += parseInt(argv[2], &NH);
+    errOccurred += parseInt(argv[3], &TI);
+    errOccurred += parseInt(argv[4], &TB);
+    errOccurred += !isValidTime(TI);
+    errOccurred += !isValidTime(TB);
     if (errOccurred)
     {
         return EXIT_FAILURE;
@@ -233,15 +237,15 @@ int main(int argc, char **argv)
     shared = map(shared);
     shared->moleculeId = 1;
     shared->row = 0;
-    shared->no = no;
-    shared->nh = nh;
+    shared->NO= NO;
+    shared->NH = NH;
 
-    for (int i = 1; i <= nh; i++)
+    for (int i = 1; i <= NH; i++)
     {
         pid = fork();
         if (pid == 0) // only child
         {
-            handleHydrogen(i, ti);
+            handleHydrogen(i, TI);
         }
         else if (pid < 0) // error occured
         {
@@ -251,12 +255,12 @@ int main(int argc, char **argv)
         }
     }
 
-    for (int i = 1; i <= no; i++)
+    for (int i = 1; i <= NO; i++)
     {
         pid = fork();
         if (pid == 0) // only child
         {
-            handleOxygen(i, ti, tb);
+            handleOxygen(i, TI, TB);
         }
         else if (pid < 0) // error occured
         {
@@ -267,7 +271,7 @@ int main(int argc, char **argv)
     }
 
     //wait for all kids to die
-    for (int i=0;i<no+nh;i++){
+    for (int i=0;i<NO+NH;i++){
         wait(NULL);
     }
     clear();
