@@ -109,6 +109,7 @@ void mysleep(int max)
         return;
     }
     int time = (rand() % max) + 1;
+    time *= 1000;
     // fprintf(stderr,"Time: %d!\n",time);
     usleep(time);
     return;
@@ -196,7 +197,6 @@ void handleHydrogen(int id, int TI)
 
 int main(int argc, char **argv)
 {
-    clear();
     if (argc != 5)
     {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
@@ -204,8 +204,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    pid_t pid;
     long NO, NH, TI, TB;
     int errOccurred = 0;
+    shared = map(shared);
 
     errOccurred += parseInt(argv[1], &NO);
     errOccurred += parseInt(argv[2], &NH);
@@ -225,19 +227,17 @@ int main(int argc, char **argv)
         clear();
     }
 
-    pid_t pid;
-    shared = map(shared);
     shared->moleculeID = 1;
     shared->row = 1;
     shared->NO = NO;
     shared->NH = NH;
-    
-    for (int i = 1; i <= NH; i++)
+
+    for (int id = 1; id <= NH; id++)
     {
         pid = fork();
         if (pid == 0)
         {
-            handleHydrogen(i, TI);
+            handleHydrogen(id, TI);
         }
         else if (pid < 0) // error occured
         {
@@ -247,12 +247,12 @@ int main(int argc, char **argv)
         }
     }
 
-    for (int i = 1; i <= NO; i++)
+    for (int id = 1; id <= NO; id++)
     {
         pid = fork();
         if (pid == 0) // only child
         {
-            handleOxygen(i, TI, TB);
+            handleOxygen(id, TI, TB);
         }
         else if (pid < 0) // error occured
         {
