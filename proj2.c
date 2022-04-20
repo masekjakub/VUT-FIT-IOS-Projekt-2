@@ -26,7 +26,7 @@ sem_t *writeSem = NULL;
 sem_t *moleculeDoneSemH = NULL;
 sem_t *moleculeDoneSemO = NULL;
 
-int parseInt(char *src, long *dest)
+int parseLong(char *src, long *dest)
 {
     char *ptr;
     *dest = strtol(src, &ptr, 10);
@@ -210,10 +210,10 @@ int main(int argc, char **argv)
     int errOccurred = 0;
     shared = map(shared);
 
-    errOccurred += parseInt(argv[1], &NO);
-    errOccurred += parseInt(argv[2], &NH);
-    errOccurred += parseInt(argv[3], &TI);
-    errOccurred += parseInt(argv[4], &TB);
+    errOccurred += parseLong(argv[1], &NO);
+    errOccurred += parseLong(argv[2], &NH);
+    errOccurred += parseLong(argv[3], &TI);
+    errOccurred += parseLong(argv[4], &TB);
     errOccurred += !isValidTime(TI);
     errOccurred += !isValidTime(TB);
     if (errOccurred)
