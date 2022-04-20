@@ -9,6 +9,8 @@
 
 #define map(var) (mmap(NULL, sizeof(*var), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
 
+FILE *file;
+
 struct shared_t
 {
     int moleculeID;
@@ -67,9 +69,6 @@ void clear()
 
 int init()
 {
-    freopen("proj2.out", "w", stdout);
-    setbuf(stdout, NULL);
-
     if ((oxySemaphore = sem_open("/xmasek19.IOS.Projekt2.O", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
     {
         printf("Semaphore O not created\n");
@@ -117,7 +116,8 @@ void mysleep(int max)
 void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
 {
     sem_wait(writeSem);
-    printf(string, shared->row, atomID);
+    fprintf(file,string, shared->row, atomID);
+    fflush(file);
     shared->row++;
     sem_post(writeSem);
 }
@@ -125,7 +125,8 @@ void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
 void syncPrintMolecule(char string[], struct shared_t *shared, int atomID)
 {
     sem_wait(writeSem);
-    printf(string, shared->row, atomID, shared->moleculeID);
+    fprintf(file,string, shared->row, atomID, shared->moleculeID);
+    fflush(file);
     shared->row++;
     sem_post(writeSem);
 }
@@ -149,7 +150,7 @@ void handleOxygen(int id, int TI, int TB)
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
     mysleep(TB);
 
-    // inform two hydrogens that molecule created
+    // inform two hydrogens that molecule is created
     sem_post(moleculeDoneSemO);
     sem_post(moleculeDoneSemO);
 
@@ -212,9 +213,9 @@ int main(int argc, char **argv)
     }
 
     pid_t pid;
+    file = fopen("proj2.out", "w");
     long NO, NH, TI, TB;
     int errCount = 0;
-    shared = map(shared);
 
     errCount += parseLong(argv[1], &NO);
     errCount += parseLong(argv[2], &NH);
@@ -235,6 +236,8 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    //init of shared memory
+    shared = map(shared);
     shared->moleculeID = 1;
     shared->row = 1;
     shared->NO = NO;
