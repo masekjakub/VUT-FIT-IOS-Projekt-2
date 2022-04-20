@@ -136,7 +136,7 @@ void handleOxygen(int id, int TI, int TB)
     mysleep(TI);
     syncPrintAtom("%d: O %d: going to queue\n", shared, id);
 
-    // wait while another molecule is being created
+    // wait for previous molecule to be created
     sem_wait(oxySemaphore);
     if (shared->NH - shared->NoHUsed < 2)
     {
@@ -149,7 +149,7 @@ void handleOxygen(int id, int TI, int TB)
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
     mysleep(TB);
 
-    // inform two hydrogens (molecule created)
+    // inform two hydrogens that molecule created
     sem_post(moleculeDoneSemO);
     sem_post(moleculeDoneSemO);
 
@@ -175,7 +175,7 @@ void handleHydrogen(int id, int TI)
     mysleep(TI);
     syncPrintAtom("%d: H %d: going to queue\n", shared, id);
 
-    // wait while another molecule is being created
+    // wait for previous molecule to be created
     sem_wait(hydSemaphore);
     if (shared->NH - shared->NoHUsed < 2 || shared->NO == shared->NoOUsed)
     {
@@ -187,6 +187,7 @@ void handleHydrogen(int id, int TI)
     // create molecule
     syncPrintMolecule("%d: H %d: creating molecule %d \n", shared, id);
 
+    // wait for ack from oxygen
     sem_wait(moleculeDoneSemO);
     syncPrintMolecule("%d: H %d: molecule %d created\n", shared, id);
 
@@ -207,17 +208,17 @@ int main(int argc, char **argv)
 
     pid_t pid;
     long NO, NH, TI, TB;
-    int errOccurred = 0;
+    int errCount = 0;
     shared = map(shared);
 
-    errOccurred += parseLong(argv[1], &NO);
-    errOccurred += parseLong(argv[2], &NH);
-    errOccurred += parseLong(argv[3], &TI);
-    errOccurred += parseLong(argv[4], &TB);
-    errOccurred += !isValidTime(TI);
-    errOccurred += !isValidTime(TB);
+    errCount += parseLong(argv[1], &NO);
+    errCount += parseLong(argv[2], &NH);
+    errCount += parseLong(argv[3], &TI);
+    errCount += parseLong(argv[4], &TB);
+    errCount += !isValidTime(TI);
+    errCount += !isValidTime(TB);
 
-    if (errOccurred)
+    if (errCount)
     {
         clear();
         exit(EXIT_FAILURE);
