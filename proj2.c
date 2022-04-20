@@ -159,6 +159,7 @@ void handleOxygen(int id, int TI, int TB)
     sem_wait(moleculeDoneSemH);
     sem_wait(moleculeDoneSemH);
 
+    // no synchronization needed (only 1 process at the same time)
     shared->moleculeID++;
     shared->NoOUsed++;
 
@@ -191,7 +192,11 @@ void handleHydrogen(int id, int TI)
     sem_wait(moleculeDoneSemO);
     syncPrintMolecule("%d: H %d: molecule %d created\n", shared, id);
 
+    // synchronized operation with shared variable
+    sem_wait(writeSem);
     shared->NoHUsed++;
+    sem_post(writeSem);
+
     // ack for oxygen that molecule is created
     sem_post(moleculeDoneSemH);
     return;
