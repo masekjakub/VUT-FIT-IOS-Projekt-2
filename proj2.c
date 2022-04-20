@@ -54,6 +54,7 @@ int isValidTime(int time)
 void clear()
 {
     munmap(shared, sizeof *shared);
+    fclose(file);
     sem_close(oxySemaphore);
     sem_close(hydSemaphore);
     sem_close(writeSem);
@@ -64,7 +65,6 @@ void clear()
     sem_unlink("/xmasek19.IOS.Projekt2.Write");
     sem_unlink("/xmasek19.IOS.Projekt2.moleculeDoneSemH");
     sem_unlink("/xmasek19.IOS.Projekt2.moleculeDoneSemO");
-    fclose(stdout);
 }
 
 int init()
