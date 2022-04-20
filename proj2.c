@@ -142,7 +142,7 @@ void handleOxygen(int id, int TI, int TB)
     {
         syncPrintAtom("%d: O %d: not enough H\n", shared, id);
         sem_post(oxySemaphore);
-        exit(0);
+        return;
     }
 
     // create molecule
@@ -166,7 +166,7 @@ void handleOxygen(int id, int TI, int TB)
     sem_post(hydSemaphore);
     sem_post(hydSemaphore);
     sem_post(oxySemaphore);
-    exit(0);
+    return;
 }
 
 void handleHydrogen(int id, int TI)
@@ -181,7 +181,7 @@ void handleHydrogen(int id, int TI)
     {
         syncPrintAtom("%d: H %d: not enough O or H\n", shared, id);
         sem_post(hydSemaphore);
-        exit(0);
+        return;
     }
 
     // create molecule
@@ -193,7 +193,7 @@ void handleHydrogen(int id, int TI)
     shared->NoHUsed++;
     // ack for oxygen that molecule is created
     sem_post(moleculeDoneSemH);
-    exit(0);
+    return;
 }
 
 int main(int argc, char **argv)
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
         clear();
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
     pid_t pid;
@@ -216,16 +216,17 @@ int main(int argc, char **argv)
     errOccurred += parseLong(argv[4], &TB);
     errOccurred += !isValidTime(TI);
     errOccurred += !isValidTime(TB);
+
     if (errOccurred)
     {
-        return EXIT_FAILURE;
         clear();
+        exit(EXIT_FAILURE);
     }
 
     if (init())
     {
-        exit(EXIT_FAILURE);
         clear();
+        exit(EXIT_FAILURE);
     }
 
     shared->moleculeID = 1;
@@ -240,12 +241,13 @@ int main(int argc, char **argv)
         if (pid == 0) // child only
         {
             handleHydrogen(id, TI);
+            exit(EXIT_SUCCESS);
         }
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating hydrogen!");
             clear();
-            return EXIT_FAILURE;
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -253,15 +255,16 @@ int main(int argc, char **argv)
     for (int id = 1; id <= NO; id++)
     {
         pid = fork();
-        if (pid == 0) // child only
+        if (pid > 0) // child only
         {
             handleOxygen(id, TI, TB);
+            exit(EXIT_SUCCESS);
         }
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating oxygen!");
             clear();
-            return EXIT_FAILURE;
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -271,5 +274,5 @@ int main(int argc, char **argv)
         wait(NULL);
     }
     clear();
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
