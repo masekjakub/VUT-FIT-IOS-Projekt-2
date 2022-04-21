@@ -1,7 +1,6 @@
 #!/bin/bash
 
 PARAM=$1
-echo $PARAM
 for i in $(seq "$PARAM")
 do
     $(./proj2 30 17 0 0)
@@ -30,21 +29,10 @@ do
         }
     }')
 
+    RES=$RES$(cat proj2.out | bash kontrola-vystupu.sh)
     if [[ $RES != "" ]]
     then
-        echo ""
-        echo ""
-        echo ""
-        echo $RES
-        cat proj2.out
-    fi
-
-    RES=$(cat proj2.out | bash kontrola-vystupu.sh)
-    if [[ $RES != "" ]]
-    then
-        echo ""
-        echo ""
-        echo ""
+        echo "----------------------------------------------------------------------"
         echo $RES
         cat proj2.out
     fi
@@ -80,21 +68,10 @@ do
         }
     }')
 
+    RES=$RES$(cat proj2.out | bash kontrola-vystupu.sh)
     if [[ $RES != "" ]]
     then
-        echo ""
-        echo ""
-        echo ""
-        echo $RES
-        cat proj2.out
-    fi
-
-    RES=$(cat proj2.out| bash kontrola-vystupu.sh)
-    if [[ $RES != "" ]]
-    then
-        echo ""
-        echo ""
-        echo ""
+        echo "----------------------------------------------------------------------"
         echo $RES
         cat proj2.out
     fi
