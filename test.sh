@@ -1,12 +1,17 @@
 #!/bin/bash
 
-for i in {0..100}
+PARAM=$1
+echo $PARAM
+for i in $(seq "$PARAM")
 do
-    #120 rows
     $(./proj2 30 17 0 0)
     wait $!
 
-   RES=$(cat proj2.out | awk -F' ' -v creating=0 -v created=0 '{
+   RES=$(cat proj2.out | tr -d : | awk -F' ' -v creating=0 -v created=0 -v row=0 '{
+        row++
+        if($1 != row){
+            print "Wrong A: at line "NR
+        }
         if($4 == "creating")
         {
             creating++
@@ -16,7 +21,14 @@ do
         }else if ($6 == "created" && creating != 0){
             print "Earlier created then creating on line "NR+1
         }
-    }END{if(creating != 0){print "Unused atom printed creating"}}')
+    }END{
+        if(creating != 0){
+            print "Unused atom printed creating"
+        }
+        if(NR != 165){
+            print "Some rows are missing! Expected 165, got: "NR
+        }
+    }')
 
     if [[ $RES != "" ]]
     then
@@ -38,15 +50,18 @@ do
     fi
 done
 
-for i in {0..100}
+for i in $(seq "$PARAM")
 do
     ti=$(($RANDOM%1001))
     tb=$(($RANDOM%1001))
-    #30 rows
     $(./proj2 5 9 $ti $tb)
     wait $!
 
-   RES=$(cat proj2.out | awk -F' ' -v creating=0 -v created=0 '{
+   RES=$(cat proj2.out | tr -d : | awk -F' ' -v creating=0 -v created=0 -v row=0 '{
+        row++
+        if($1 != row){
+            print "Wrong A: at line "NR
+        }
         if($4 == "creating")
         {
             creating++
@@ -56,7 +71,14 @@ do
         }else if ($6 == "created" && creating != 0){
             print "Earlier created then creating on line "NR+1
         }
-    }END{if(creating != 0){print "Unused atom printed creating"}}')
+    }END{
+        if(creating != 0){
+            print "Unused atom printed creating"
+        }
+        if(NR != 54){
+            print "Some rows are missing! Expected 54, got: "NR
+        }
+    }')
 
     if [[ $RES != "" ]]
     then
