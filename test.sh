@@ -4,7 +4,7 @@ PARAM=$1
 PROCCOUNT=$2
 for i in $(seq "$PARAM")
 do
-    $(./proj2 30 17 0 0)
+    $(./proj2 3 5 0 0)
     wait $!
 
    RES=$(cat proj2.out | tr -d : | awk -F' ' -v creating=0 -v created=0 -v row=0 '{
@@ -25,8 +25,8 @@ do
         if(creating != 0){
             print "Unused atom printed creating"
         }
-        if(NR != 165){
-            print "Some rows are missing! Expected 165, got: "NR
+        if(NR != 30){
+            print "Some rows are missing! Expected 30, got: "NR
         }
     }')
 
