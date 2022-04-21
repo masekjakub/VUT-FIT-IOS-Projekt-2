@@ -22,11 +22,11 @@ struct shared_t
 };
 struct shared_t *shared = NULL;
 
-sem_t *oxySemaphore = NULL;
-sem_t *hydSemaphore = NULL;
+sem_t *oxyMolecSem = NULL;
+sem_t *hydMolecSem = NULL;
 sem_t *writeSem = NULL;
-sem_t *moleculeDoneSemH = NULL;
-sem_t *moleculeDoneSemO = NULL;
+sem_t *oxygenSem = NULL;
+sem_t *hydrogenSem = NULL;
 
 int parseLong(char *src, long *dest)
 {
@@ -55,27 +55,27 @@ void clear()
 {
     munmap(shared, sizeof *shared);
     fclose(file);
-    sem_close(oxySemaphore);
-    sem_close(hydSemaphore);
+    sem_close(oxyMolecSem);
+    sem_close(hydMolecSem);
     sem_close(writeSem);
-    sem_close(moleculeDoneSemH);
-    sem_close(moleculeDoneSemO);
-    sem_unlink("/xmasek19.IOS.Projekt2.O");
-    sem_unlink("/xmasek19.IOS.Projekt2.H");
+    sem_close(oxygenSem);
+    sem_close(hydrogenSem);
+    sem_unlink("/xmasek19.IOS.Projekt2.oxyMolecSem");
+    sem_unlink("/xmasek19.IOS.Projekt2.hydMolecSem");
     sem_unlink("/xmasek19.IOS.Projekt2.Write");
-    sem_unlink("/xmasek19.IOS.Projekt2.moleculeDoneSemH");
-    sem_unlink("/xmasek19.IOS.Projekt2.moleculeDoneSemO");
+    sem_unlink("/xmasek19.IOS.Projekt2.oxygenSem");
+    sem_unlink("/xmasek19.IOS.Projekt2.hydrogenSem");
 }
 
 int init()
 {
-    if ((oxySemaphore = sem_open("/xmasek19.IOS.Projekt2.O", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
+    if ((oxyMolecSem = sem_open("/xmasek19.IOS.Projekt2.oxyMolecSem", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
     {
-        printf("Semaphore O not created\n");
+        printf("Semaphore oxyMolecSem not created\n");
         return EXIT_FAILURE;
     }
 
-    if ((hydSemaphore = sem_open("/xmasek19.IOS.Projekt2.H", O_CREAT | O_EXCL, 0666, 2)) == SEM_FAILED)
+    if ((hydMolecSem = sem_open("/xmasek19.IOS.Projekt2.hydMolecSem", O_CREAT | O_EXCL, 0666, 2)) == SEM_FAILED)
     {
         printf("Semaphore H not created\n");
         return EXIT_FAILURE;
@@ -87,27 +87,27 @@ int init()
         return EXIT_FAILURE;
     }
 
-    if ((moleculeDoneSemH = sem_open("/xmasek19.IOS.Projekt2.moleculeDoneSemH", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
+    if ((oxygenSem = sem_open("/xmasek19.IOS.Projekt2.oxygenSem", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
     {
-        printf("Semaphore moleculeDoneSemH not created\n");
+        printf("Semaphore oxygenSem not created\n");
         return EXIT_FAILURE;
     }
 
-    if ((moleculeDoneSemO = sem_open("/xmasek19.IOS.Projekt2.moleculeDoneSemO", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
+    if ((hydrogenSem = sem_open("/xmasek19.IOS.Projekt2.hydrogenSem", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
     {
-        printf("Semaphore moleculeDoneSemO not created\n");
+        printf("Semaphore hydrogenSem not created\n");
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
 
-void mysleep(int max)
+void mysleep(int max, int row)
 {
     if (max == 0)
     {
         return;
     }
-    srand(getpid());
+    srand(getpid()/row);
     int time = (rand() % max) + 1;
     time *= 1000;
     usleep(time);
@@ -135,63 +135,69 @@ void syncPrintMolecule(char string[], struct shared_t *shared, int atomID)
 void handleOxygen(int id, int TI, int TB)
 {
     syncPrintAtom("%d: O %d: started\n", shared, id);
-    mysleep(TI);
+    mysleep(TI, shared->row);
     syncPrintAtom("%d: O %d: going to queue\n", shared, id);
 
     // wait for previous molecule to be created
-    sem_wait(oxySemaphore);
+    sem_wait(oxyMolecSem);
+
     if (shared->NH - shared->NoHUsed < 2)
     {
         syncPrintAtom("%d: O %d: not enough H\n", shared, id);
-        sem_post(oxySemaphore);
+        sem_post(oxyMolecSem);
         return;
     }
 
     // create molecule
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
-    mysleep(TB);
+    mysleep(TB, shared->row);
 
-    // inform two hydrogens that molecule is created
-    sem_post(moleculeDoneSemO);
-    sem_post(moleculeDoneSemO);
+    // wait or all 3 atoms to start creating
+    sem_wait(oxygenSem);
+    sem_wait(oxygenSem);
+    sem_post(hydrogenSem);
+    sem_post(hydrogenSem);
 
     syncPrintMolecule("%d: O %d: molecule %d created\n", shared, id);
 
-    // wait for hydrogens to ack that molecule is created
-    sem_wait(moleculeDoneSemH);
-    sem_wait(moleculeDoneSemH);
+    // wait for all atoms to write "molecule x created"
+    sem_post(hydrogenSem);
+    sem_post(hydrogenSem);
+    sem_wait(oxygenSem);
+    sem_wait(oxygenSem);
 
     // no synchronization needed (only 1 process at the same time)
     shared->moleculeID++;
     shared->NoOUsed++;
 
     // let 1 oxygen and 2 hydrogens to create another molecule
-    sem_post(hydSemaphore);
-    sem_post(hydSemaphore);
-    sem_post(oxySemaphore);
+    sem_post(hydMolecSem);
+    sem_post(hydMolecSem);
+    sem_post(oxyMolecSem);
     return;
 }
 
 void handleHydrogen(int id, int TI)
 {
     syncPrintAtom("%d: H %d: started\n", shared, id);
-    mysleep(TI);
+    mysleep(TI, shared->row);
     syncPrintAtom("%d: H %d: going to queue\n", shared, id);
 
     // wait for previous molecule to be created
-    sem_wait(hydSemaphore);
+    sem_wait(hydMolecSem);
+
     if (shared->NH - shared->NoHUsed < 2 || shared->NO == shared->NoOUsed)
     {
         syncPrintAtom("%d: H %d: not enough O or H\n", shared, id);
-        sem_post(hydSemaphore);
+        sem_post(hydMolecSem);
         return;
     }
 
-    // create molecule
     syncPrintMolecule("%d: H %d: creating molecule %d \n", shared, id);
 
-    // wait for ack from oxygen
-    sem_wait(moleculeDoneSemO);
+    // wait or all 3 atoms to start creating
+    sem_post(oxygenSem);
+    sem_wait(hydrogenSem);
     syncPrintMolecule("%d: H %d: molecule %d created\n", shared, id);
 
     // synchronized operation with shared variable
@@ -200,7 +206,9 @@ void handleHydrogen(int id, int TI)
     sem_post(writeSem);
 
     // ack for oxygen that molecule is created
-    sem_post(moleculeDoneSemH);
+    sem_post(oxygenSem);
+    sem_wait(hydrogenSem);
+
     return;
 }
 

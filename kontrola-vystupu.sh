@@ -86,6 +86,6 @@ if [ ! X$O_mcf_n = "X1" ]; then
 	echo "WARNING: no O finished molecule creation"
 fi
 if [ ! X$O_ne_n = "X1" ]; then 
-	echo "WARNING: no O finished with not enough O"
+	echo "WARNING: no O finished with not enough H"
 fi
 
