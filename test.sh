@@ -3,10 +3,10 @@
 for i in {0..100}
 do
     #120 rows
-    $(./proj2 15 17 0 0)
+    $(./proj2 30 17 0 0)
     wait $!
 
-    RES=$(cat proj2.out | awk -F' ' -v creating=0 -v created=0 '{
+   RES=$(cat proj2.out | awk -F' ' -v creating=0 -v created=0 '{
         if($4 == "creating")
         {
             creating++
@@ -14,10 +14,10 @@ do
                 creating=0
             }
         }else if ($6 == "created" && creating != 0){
-            print "Earlier created then creating!"
+            print "Earlier created then creating on line "NR+1
         }
     }END{if(creating != 0){print "Unused atom printed creating"}}')
-    
+
     if [[ $RES != "" ]]
     then
         echo ""
@@ -38,7 +38,7 @@ do
     fi
 done
 
-for i in {0..50}
+for i in {0..100}
 do
     ti=$(($RANDOM%1001))
     tb=$(($RANDOM%1001))
@@ -46,7 +46,7 @@ do
     $(./proj2 5 9 $ti $tb)
     wait $!
 
-    RES=$(cat proj2.out | awk -F' ' -v creating=0 -v created=0 '{
+   RES=$(cat proj2.out | awk -F' ' -v creating=0 -v created=0 '{
         if($4 == "creating")
         {
             creating++
@@ -54,9 +54,10 @@ do
                 creating=0
             }
         }else if ($6 == "created" && creating != 0){
-            print "Earlier created then creating!"
+            print "Earlier created then creating on line "NR+1
         }
     }END{if(creating != 0){print "Unused atom printed creating"}}')
+
     if [[ $RES != "" ]]
     then
         echo ""
