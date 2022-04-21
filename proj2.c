@@ -150,19 +150,18 @@ void handleOxygen(int id, int TI, int TB)
 
     // create molecule
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
-    mysleep(TB, shared->row);
 
-    // wait or all 3 atoms to start creating
+    // wait or both H atoms to start creating
     sem_wait(oxygenSem);
     sem_wait(oxygenSem);
     sem_post(hydrogenSem);
     sem_post(hydrogenSem);
+    
+    mysleep(TB, shared->row);
 
     syncPrintMolecule("%d: O %d: molecule %d created\n", shared, id);
 
     // wait for all atoms to write "molecule x created"
-    sem_post(hydrogenSem);
-    sem_post(hydrogenSem);
     sem_wait(oxygenSem);
     sem_wait(oxygenSem);
 
@@ -171,9 +170,9 @@ void handleOxygen(int id, int TI, int TB)
     shared->NoOUsed++;
 
     // let 1 oxygen and 2 hydrogens to create another molecule
-    sem_post(hydMolecSem);
-    sem_post(hydMolecSem);
     sem_post(oxyMolecSem);
+    sem_post(hydMolecSem);
+    sem_post(hydMolecSem);
     return;
 }
 
@@ -195,7 +194,7 @@ void handleHydrogen(int id, int TI)
 
     syncPrintMolecule("%d: H %d: creating molecule %d \n", shared, id);
 
-    // wait or all 3 atoms to start creating
+    // wait for all 3 atoms to start creating
     sem_post(oxygenSem);
     sem_wait(hydrogenSem);
     syncPrintMolecule("%d: H %d: molecule %d created\n", shared, id);
@@ -207,7 +206,6 @@ void handleHydrogen(int id, int TI)
 
     // ack for oxygen that molecule is created
     sem_post(oxygenSem);
-    sem_wait(hydrogenSem);
 
     return;
 }
