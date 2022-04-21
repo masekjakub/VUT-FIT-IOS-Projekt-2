@@ -38,6 +38,11 @@ int parseLong(char *src, long *dest)
         fprintf(stderr, "Unexpected character: %s\n", ptr);
         return EXIT_FAILURE;
     }
+
+    if (*dest < 0){
+        fprintf(stderr, "Negative number %ld is not allowed!\n", *dest);
+        return 1;
+    }
     return EXIT_SUCCESS;
 }
 
@@ -215,8 +220,7 @@ int main(int argc, char **argv)
     if (argc != 5)
     {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
-        clear();
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     pid_t pid;
@@ -234,13 +238,13 @@ int main(int argc, char **argv)
     if (errCount)
     {
         clear();
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     if (init())
     {
         clear();
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     //init of shared memory
@@ -257,13 +261,13 @@ int main(int argc, char **argv)
         if (pid == 0) // child only
         {
             handleHydrogen(id, TI);
-            exit(EXIT_SUCCESS);
+            return 0;
         }
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating hydrogen!");
             clear();
-            exit(EXIT_FAILURE);
+            return 0;
         }
     }
 
@@ -271,7 +275,7 @@ int main(int argc, char **argv)
     for (int id = 1; id <= NO; id++)
     {
         pid = fork();
-        if (pid > 0) // child only
+        if (pid == 0) // child only
         {
             handleOxygen(id, TI, TB);
             exit(EXIT_SUCCESS);
@@ -290,5 +294,5 @@ int main(int argc, char **argv)
         wait(NULL);
     }
     clear();
-    exit(EXIT_SUCCESS);
+    return 0;
 }
