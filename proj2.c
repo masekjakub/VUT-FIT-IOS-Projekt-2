@@ -107,6 +107,7 @@ void mysleep(int max)
     {
         return;
     }
+    srand(getpid());
     int time = (rand() % max) + 1;
     time *= 1000;
     usleep(time);
