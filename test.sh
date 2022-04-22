@@ -4,7 +4,7 @@ PARAM=$1
 PROCCOUNT=$2
 for i in $(seq "$PARAM")
 do
-    $(./proj2 3 5 0 0)
+    ./proj2 3 5 0 0
     wait $!
 
    RES=$(cat proj2.out | tr -d : | awk -F' ' -v creating=0 -v created=0 -v row=0 '{
@@ -45,7 +45,7 @@ do
     tb=$(($RANDOM%1001))
     no=$(($RANDOM%$PROCCOUNT))
     nh=$(($RANDOM%$PROCCOUNT))
-    $(./proj2 $no $nh $ti $tb)
+    ./proj2 $no $nh $ti $tb
     wait $!
    RES=$(cat proj2.out | tr -d : | awk -F' ' -v creating=0 -v created=0 -v row=0 '{
         row++
