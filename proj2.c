@@ -166,7 +166,7 @@ void handleOxygen(int id, int TI, int TB)
 
     syncPrintMolecule("%d: O %d: molecule %d created\n", shared, id);
 
-    // wait for all atoms to write "molecule x created"
+    // wait for both hydrogens to write "molecule x created"
     sem_wait(oxygenSem);
     sem_wait(oxygenSem);
 
