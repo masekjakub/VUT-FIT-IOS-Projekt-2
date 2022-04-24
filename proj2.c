@@ -104,7 +104,6 @@ void mysleep(int max, int row)
     srand(getpid() / row);
     int time = (rand() % max) + 1;
     usleep(time * 1000);
-    return;
 }
 
 void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
@@ -198,7 +197,6 @@ void handleHydrogen(int id, int TI)
 
     // ack for oxygen that molecule is created
     sem_post(oxygenSem);
-
     return;
 }
 
@@ -231,7 +229,7 @@ int main(int argc, char **argv)
     initSem(&hydMolecSem, "hydMolecSem", 2);
     initSem(&writeSem, "writeSem", 1);
 
-    // init of shared memory
+    // init shared memory
     shared = mmap(NULL, sizeof(shared), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     shared->moleculeID = 1;
     shared->row = 1;
