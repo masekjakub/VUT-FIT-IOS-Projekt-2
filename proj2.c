@@ -6,10 +6,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-#define map(var) (mmap(NULL, sizeof(*var), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
-
-FILE *file;
+#include <string.h>
+#define MAP_ANONYMOUS 0x20
 
 struct shared_t
 {
@@ -22,44 +20,15 @@ struct shared_t
 };
 struct shared_t *shared = NULL;
 
+FILE *file;
 sem_t *oxyMolecSem = NULL;
 sem_t *hydMolecSem = NULL;
 sem_t *writeSem = NULL;
 sem_t *oxygenSem = NULL;
 sem_t *hydrogenSem = NULL;
 
-int parseLong(char *src, long *dest)
-{
-    char *ptr;
-    *dest = strtol(src, &ptr, 10);
-
-    if (ptr[0] != '\0')
-    {
-        fprintf(stderr, "Unexpected character: %s\n", ptr);
-        return EXIT_FAILURE;
-    }
-
-    if (*dest < 0){
-        fprintf(stderr, "Negative number %ld is not allowed!\n", *dest);
-        return 1;
-    }
-    return EXIT_SUCCESS;
-}
-
-int isValidTime(int time)
-{
-    if (time >= 0 && time <= 1000)
-    {
-        return EXIT_FAILURE;
-    }
-    fprintf(stderr, "Invalid time, expected: 0-1000, got: %d.\n", time);
-    return EXIT_SUCCESS;
-}
-
 void clear()
 {
-    munmap(shared, sizeof *shared);
-    fclose(file);
     sem_close(oxyMolecSem);
     sem_close(hydMolecSem);
     sem_close(writeSem);
@@ -67,43 +36,55 @@ void clear()
     sem_close(hydrogenSem);
     sem_unlink("/xmasek19.IOS.Projekt2.oxyMolecSem");
     sem_unlink("/xmasek19.IOS.Projekt2.hydMolecSem");
-    sem_unlink("/xmasek19.IOS.Projekt2.Write");
+    sem_unlink("/xmasek19.IOS.Projekt2.writeSem");
     sem_unlink("/xmasek19.IOS.Projekt2.oxygenSem");
     sem_unlink("/xmasek19.IOS.Projekt2.hydrogenSem");
+    munmap(shared, sizeof *shared);
+    fclose(file);
 }
 
-int init()
+void parseLong(char *src, long *dest)
 {
-    if ((oxyMolecSem = sem_open("/xmasek19.IOS.Projekt2.oxyMolecSem", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
+    char *ptr;
+    *dest = strtol(src, &ptr, 10);
+
+    if (ptr[0] != '\0')
     {
-        printf("Semaphore oxyMolecSem not created\n");
-        return EXIT_FAILURE;
+        fprintf(stderr, "Unexpected character: %s\n", ptr);
+        clear();
+        exit(1);
     }
 
-    if ((hydMolecSem = sem_open("/xmasek19.IOS.Projekt2.hydMolecSem", O_CREAT | O_EXCL, 0666, 2)) == SEM_FAILED)
-    {
-        printf("Semaphore H not created\n");
-        return EXIT_FAILURE;
+    if (*dest < 0){
+        fprintf(stderr, "Negative numbers are not allowed! Found: %ld\n", *dest);
+        clear();
+        exit(1);
     }
+    return;
+}
 
-    if ((writeSem = sem_open("/xmasek19.IOS.Projekt2.Write", O_CREAT | O_EXCL, 0666, 1)) == SEM_FAILED)
+int isValidTime(int time)
+{
+    if (time >= 0 && time <= 1000)
     {
-        printf("Semaphore write not created\n");
-        return EXIT_FAILURE;
+        return 1;
     }
+    fprintf(stderr, "Invalid time, expected: 0-1000, got: %d.\n", time);
+    return 0;
+}
 
-    if ((oxygenSem = sem_open("/xmasek19.IOS.Projekt2.oxygenSem", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
+void initSem(sem_t **sem,char *name, int initState)
+{
+    char string[50];
+    strcpy(string, "/xmasek19.IOS.Projekt2.");
+    strcat(string, name);
+    if ((*sem = sem_open(string, O_CREAT | O_EXCL, 0666, initState)) == SEM_FAILED)
     {
-        printf("Semaphore oxygenSem not created\n");
-        return EXIT_FAILURE;
+        printf("Semaphore %s not created\n", name);
+        clear();
+        exit(1);
     }
-
-    if ((hydrogenSem = sem_open("/xmasek19.IOS.Projekt2.hydrogenSem", O_CREAT | O_EXCL, 0666, 0)) == SEM_FAILED)
-    {
-        printf("Semaphore hydrogenSem not created\n");
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
+    return;
 }
 
 void mysleep(int max, int row)
@@ -114,8 +95,7 @@ void mysleep(int max, int row)
     }
     srand(getpid()/row);
     int time = (rand() % max) + 1;
-    time *= 1000;
-    usleep(time);
+    usleep(time*1000);
     return;
 }
 
@@ -153,7 +133,6 @@ void handleOxygen(int id, int TI, int TB)
         return;
     }
 
-    // create molecule
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
 
     // wait or both H atoms to start creating
@@ -226,29 +205,24 @@ int main(int argc, char **argv)
     pid_t pid;
     file = fopen("proj2.out", "w");
     long NO, NH, TI, TB;
-    int errCount = 0;
 
-    errCount += parseLong(argv[1], &NO);
-    errCount += parseLong(argv[2], &NH);
-    errCount += parseLong(argv[3], &TI);
-    errCount += parseLong(argv[4], &TB);
-    errCount += !isValidTime(TI);
-    errCount += !isValidTime(TB);
+    //process input
+    parseLong(argv[1], &NO);
+    parseLong(argv[2], &NH);
+    parseLong(argv[3], &TI);
+    parseLong(argv[4], &TB);
+    if(!isValidTime(TI))return 1;
+    if(!isValidTime(TB))return 1;
 
-    if (errCount)
-    {
-        clear();
-        return 1;
-    }
-
-    if (init())
-    {
-        clear();
-        return 1;
-    }
+    //init semaphores
+    initSem(&oxygenSem, "oxygenSem", 0);
+    initSem(&hydrogenSem, "hydrogenSem", 0);
+    initSem(&oxyMolecSem, "oxyMolecSem", 1);
+    initSem(&hydMolecSem, "hydMolecSem", 2);
+    initSem(&writeSem, "writeSem", 1);
 
     //init of shared memory
-    shared = map(shared);
+    shared = mmap(NULL, sizeof(shared), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     shared->moleculeID = 1;
     shared->row = 1;
     shared->NO = NO;
@@ -267,7 +241,7 @@ int main(int argc, char **argv)
         {
             fprintf(stderr, "Error while creating hydrogen!");
             clear();
-            return 0;
+            return 1;
         }
     }
 
@@ -278,13 +252,13 @@ int main(int argc, char **argv)
         if (pid == 0) // child only
         {
             handleOxygen(id, TI, TB);
-            exit(EXIT_SUCCESS);
+            return 0;
         }
         else if (pid < 0) // error occured
         {
             fprintf(stderr, "Error while creating oxygen!");
             clear();
-            exit(EXIT_FAILURE);
+            return 1;
         }
     }
 
