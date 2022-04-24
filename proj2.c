@@ -1,3 +1,11 @@
+/**************************************************************/
+/*  Project name : VUT-FIT-IOS-Projekt 2                      */
+/*  File : proj2.c                                            */
+/*  Date : 24.4.2022                                          */
+/*  Author : Jakub Mašek xmasek@19stud.fit.vutbr.cz           */
+/*  Description : synchronization - H20 creating              */
+/**************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,13 +20,12 @@
 struct shared_t
 {
     int moleculeID;
-    int NoOUsed; // number of oxygens used for creating molecules
-    int NoHUsed; // number of hydrogens used for creating molecules
+    int NoOUsed; // number of oxygens already used for creating molecules
+    int NoHUsed; // number of hydrogens already used for creating molecules
     int row;
     long NO;
     long NH;
-};
-struct shared_t *shared = NULL;
+} * shared;
 
 FILE *file;
 sem_t *oxyMolecSem = NULL;
@@ -55,7 +62,8 @@ void parseLong(char *src, long *dest)
         exit(1);
     }
 
-    if (*dest < 0){
+    if (*dest < 0)
+    {
         fprintf(stderr, "Negative numbers are not allowed! Found: %ld\n", *dest);
         clear();
         exit(1);
@@ -73,7 +81,7 @@ int isValidTime(int time)
     return 0;
 }
 
-void initSem(sem_t **sem,char *name, int initState)
+void initSem(sem_t **sem, char *name, int initState)
 {
     char string[50];
     strcpy(string, "/xmasek19.IOS.Projekt2.");
@@ -93,16 +101,16 @@ void mysleep(int max, int row)
     {
         return;
     }
-    srand(getpid()/row);
+    srand(getpid() / row);
     int time = (rand() % max) + 1;
-    usleep(time*1000);
+    usleep(time * 1000);
     return;
 }
 
 void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
 {
     sem_wait(writeSem);
-    fprintf(file,string, shared->row, atomID);
+    fprintf(file, string, shared->row, atomID);
     fflush(file);
     shared->row++;
     sem_post(writeSem);
@@ -111,7 +119,7 @@ void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
 void syncPrintMolecule(char string[], struct shared_t *shared, int atomID)
 {
     sem_wait(writeSem);
-    fprintf(file,string, shared->row, atomID, shared->moleculeID);
+    fprintf(file, string, shared->row, atomID, shared->moleculeID);
     fflush(file);
     shared->row++;
     sem_post(writeSem);
@@ -135,12 +143,12 @@ void handleOxygen(int id, int TI, int TB)
 
     syncPrintMolecule("%d: O %d: creating molecule %d \n", shared, id);
 
-    // wait or both H atoms to start creating
+    // wait for both H atoms to start creating
     sem_wait(oxygenSem);
     sem_wait(oxygenSem);
     sem_post(hydrogenSem);
     sem_post(hydrogenSem);
-    
+
     mysleep(TB, shared->row);
 
     syncPrintMolecule("%d: O %d: molecule %d created\n", shared, id);
@@ -206,22 +214,24 @@ int main(int argc, char **argv)
     file = fopen("proj2.out", "w");
     long NO, NH, TI, TB;
 
-    //process input
+    // process input
     parseLong(argv[1], &NO);
     parseLong(argv[2], &NH);
     parseLong(argv[3], &TI);
     parseLong(argv[4], &TB);
-    if(!isValidTime(TI))return 1;
-    if(!isValidTime(TB))return 1;
+    if (!isValidTime(TI))
+        return 1;
+    if (!isValidTime(TB))
+        return 1;
 
-    //init semaphores
+    // init semaphores
     initSem(&oxygenSem, "oxygenSem", 0);
     initSem(&hydrogenSem, "hydrogenSem", 0);
     initSem(&oxyMolecSem, "oxyMolecSem", 1);
     initSem(&hydMolecSem, "hydMolecSem", 2);
     initSem(&writeSem, "writeSem", 1);
 
-    //init of shared memory
+    // init of shared memory
     shared = mmap(NULL, sizeof(shared), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     shared->moleculeID = 1;
     shared->row = 1;
