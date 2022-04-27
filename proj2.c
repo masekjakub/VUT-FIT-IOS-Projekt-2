@@ -6,22 +6,21 @@
 /*  Description : synchronization - H20 creating              */
 /**************************************************************/
 
+#include <fcntl.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <semaphore.h>
-#include <fcntl.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <string.h>
+#include <unistd.h>
 #define MAP_ANONYMOUS 0x20
 
-struct shared_t
-{
+struct shared_t {
     int moleculeID;
-    int NoOUsed; // number of oxygens already used for creating molecules
-    int NoHUsed; // number of hydrogens already used for creating molecules
+    int NoOUsed;  // number of oxygens already used for creating molecules
+    int NoHUsed;  // number of hydrogens already used for creating molecules
     int row;
     long NO;
     long NH;
@@ -34,8 +33,11 @@ sem_t *writeSem = NULL;
 sem_t *oxygenSem = NULL;
 sem_t *hydrogenSem = NULL;
 
-void clear()
-{
+/**
+ * @brief Clear semaphores, memory and file
+ *
+ */
+void clear() {
     sem_close(oxyMolecSem);
     sem_close(hydMolecSem);
     sem_close(writeSem);
@@ -47,23 +49,29 @@ void clear()
     sem_unlink("/xmasek19.IOS.Projekt2.oxygenSem");
     sem_unlink("/xmasek19.IOS.Projekt2.hydrogenSem");
     munmap(shared, sizeof *shared);
-    fclose(file);
+
+    if (file != NULL) {
+        fclose(file);
+    }
 }
 
-void parseLong(char *src, long *dest)
-{
+/**
+ * @brief Parse string to long
+ *
+ * @param src Source string
+ * @param dest Pointer to destination
+ */
+void parseLong(char *src, long *dest) {
     char *ptr;
     *dest = strtol(src, &ptr, 10);
 
-    if (ptr[0] != '\0')
-    {
+    if (ptr[0] != '\0') {
         fprintf(stderr, "Unexpected character: %s\n", ptr);
         clear();
         exit(1);
     }
 
-    if (*dest < 0)
-    {
+    if (*dest < 0) {
         fprintf(stderr, "Negative numbers are not allowed! Found: %ld\n", *dest);
         clear();
         exit(1);
@@ -71,23 +79,32 @@ void parseLong(char *src, long *dest)
     return;
 }
 
-int isValidTime(int time)
-{
-    if (time >= 0 && time <= 1000)
-    {
+/**
+ * @brief Validates creating time
+ *
+ * @param time Time to be validated
+ * @return int error -> 1 / valid -> 0
+ */
+int isValidTime(int time) {
+    if (time >= 0 && time <= 1000) {
         return 1;
     }
     fprintf(stderr, "Invalid time, expected: 0-1000, got: %d.\n", time);
     return 0;
 }
 
-void initSem(sem_t **sem, char *name, int initState)
-{
+/**
+ * @brief Init semaphore
+ *
+ * @param sem Semaphore to be initialized
+ * @param name Name of semaphore
+ * @param initState Semaphore starting state
+ */
+void initSem(sem_t **sem, char *name, int initState) {
     char string[50];
     strcpy(string, "/xmasek19.IOS.Projekt2.");
     strcat(string, name);
-    if ((*sem = sem_open(string, O_CREAT | O_EXCL, 0666, initState)) == SEM_FAILED)
-    {
+    if ((*sem = sem_open(string, O_CREAT | O_EXCL, 0666, initState)) == SEM_FAILED) {
         printf("Semaphore %s not created\n", name);
         clear();
         exit(1);
@@ -95,10 +112,14 @@ void initSem(sem_t **sem, char *name, int initState)
     return;
 }
 
-void mysleep(int max, int row)
-{
-    if (max == 0)
-    {
+/**
+ * @brief Sleeps for random time between 0 and max time
+ *
+ * @param max Max time of sleep (ms)
+ * @param row Number of current row to randomize random function
+ */
+void mysleep(int max, int row) {
+    if (max == 0) {
         return;
     }
     srand(getpid() / row);
@@ -106,8 +127,14 @@ void mysleep(int max, int row)
     usleep(time * 1000);
 }
 
-void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
-{
+/**
+ * @brief Synchronized print to file (atoms)
+ *
+ * @param string Format string
+ * @param shared Shared memory
+ * @param atomID ID of current atom
+ */
+void syncPrintAtom(char string[], struct shared_t *shared, int atomID) {
     sem_wait(writeSem);
     fprintf(file, string, shared->row, atomID);
     fflush(file);
@@ -115,8 +142,14 @@ void syncPrintAtom(char string[], struct shared_t *shared, int atomID)
     sem_post(writeSem);
 }
 
-void syncPrintMolecule(char string[], struct shared_t *shared, int atomID)
-{
+/**
+ * @brief Synchronized print to file (molecules)
+ *
+ * @param string Format string
+ * @param shared Shared memory
+ * @param atomID ID of current atom
+ */
+void syncPrintMolecule(char string[], struct shared_t *shared, int atomID) {
     sem_wait(writeSem);
     fprintf(file, string, shared->row, atomID, shared->moleculeID);
     fflush(file);
@@ -124,8 +157,14 @@ void syncPrintMolecule(char string[], struct shared_t *shared, int atomID)
     sem_post(writeSem);
 }
 
-void handleOxygen(int id, int TI, int TB)
-{
+/**
+ * @brief Handle hydrogen process
+ *
+ * @param id ID of atom
+ * @param TI Max time to initial atom
+ * @param TB Max time to create melecule
+ */
+void handleOxygen(int id, int TI, int TB) {
     syncPrintAtom("%d: O %d: started\n", shared, id);
     mysleep(TI, shared->row);
     syncPrintAtom("%d: O %d: going to queue\n", shared, id);
@@ -133,8 +172,7 @@ void handleOxygen(int id, int TI, int TB)
     // wait for previous molecule to be created
     sem_wait(oxyMolecSem);
 
-    if (shared->NH - shared->NoHUsed < 2)
-    {
+    if (shared->NH - shared->NoHUsed < 2) {
         syncPrintAtom("%d: O %d: not enough H\n", shared, id);
         sem_post(oxyMolecSem);
         return;
@@ -167,8 +205,13 @@ void handleOxygen(int id, int TI, int TB)
     return;
 }
 
-void handleHydrogen(int id, int TI)
-{
+/**
+ * @brief Handle hydrogen process
+ *
+ * @param id ID of atom
+ * @param TI Max time to initial atom
+ */
+void handleHydrogen(int id, int TI) {
     syncPrintAtom("%d: H %d: started\n", shared, id);
     mysleep(TI, shared->row);
     syncPrintAtom("%d: H %d: going to queue\n", shared, id);
@@ -176,8 +219,7 @@ void handleHydrogen(int id, int TI)
     // wait for previous molecule to be created
     sem_wait(hydMolecSem);
 
-    if (shared->NH - shared->NoHUsed < 2 || shared->NO == shared->NoOUsed)
-    {
+    if (shared->NH - shared->NoHUsed < 2 || shared->NO == shared->NoOUsed) {
         syncPrintAtom("%d: H %d: not enough O or H\n", shared, id);
         sem_post(hydMolecSem);
         return;
@@ -199,11 +241,15 @@ void handleHydrogen(int id, int TI)
     sem_post(oxygenSem);
     return;
 }
-
-int main(int argc, char **argv)
-{
-    if (argc != 5)
-    {
+/**
+ * @brief Main function
+ *
+ * @param argc Argument count
+ * @param argv Pointer to arguments
+ * @return int Exit code
+ */
+int main(int argc, char **argv) {
+    if (argc != 5) {
         fprintf(stderr, "Invalid count of arguments, expected 4 got: %d\n", argc - 1);
         return 1;
     }
@@ -218,9 +264,9 @@ int main(int argc, char **argv)
     parseLong(argv[3], &TI);
     parseLong(argv[4], &TB);
     if (!isValidTime(TI))
-        return 1;
+        exit(1);
     if (!isValidTime(TB))
-        return 1;
+        exit(1);
 
     // init semaphores
     initSem(&oxygenSem, "oxygenSem", 0);
@@ -237,15 +283,13 @@ int main(int argc, char **argv)
     shared->NH = NH;
 
     // hydrogen generator
-    for (int id = 1; id <= NH; id++)
-    {
+    for (int id = 1; id <= NH; id++) {
         pid = fork();
-        if (pid == 0) // child only
+        if (pid == 0)  // child only
         {
             handleHydrogen(id, TI);
             return 0;
-        }
-        else if (pid < 0) // error occured
+        } else if (pid < 0)  // error occured
         {
             fprintf(stderr, "Error while creating hydrogen!");
             clear();
@@ -254,15 +298,13 @@ int main(int argc, char **argv)
     }
 
     // oxygen generator
-    for (int id = 1; id <= NO; id++)
-    {
+    for (int id = 1; id <= NO; id++) {
         pid = fork();
-        if (pid == 0) // child only
+        if (pid == 0)  // child only
         {
             handleOxygen(id, TI, TB);
             return 0;
-        }
-        else if (pid < 0) // error occured
+        } else if (pid < 0)  // error occured
         {
             fprintf(stderr, "Error while creating oxygen!");
             clear();
@@ -271,8 +313,7 @@ int main(int argc, char **argv)
     }
 
     // wait for all kids to die
-    for (int i = 0; i < NO + NH; i++)
-    {
+    for (int i = 0; i < NO + NH; i++) {
         wait(NULL);
     }
     clear();
