@@ -257,6 +257,10 @@ int main(int argc, char **argv) {
 
     pid_t pid;
     file = fopen("proj2.out", "w");
+    if (file == NULL){
+        fprintf(stderr, "Output file not opened!");
+        return 1;
+    }
     long NO, NH, TI, TB;
 
     // process input
