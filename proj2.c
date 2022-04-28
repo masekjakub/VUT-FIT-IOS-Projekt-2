@@ -123,7 +123,7 @@ void mysleep(int max, int row) {
         return;
     }
     srand(getpid() / row);
-    int time = (rand() % max) + 1;
+    int time = rand() % (max + 1);
     usleep(time * 1000);
 }
 
