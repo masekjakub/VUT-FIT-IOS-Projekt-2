@@ -1,7 +1,7 @@
 /**************************************************************/
 /*  Project name : VUT-FIT-IOS-Projekt 2                      */
 /*  File : proj2.c                                            */
-/*  Date : 24.4.2022                                          */
+/*  Date : 28.4.2022                                          */
 /*  Author : Jakub Mašek xmasek@19stud.fit.vutbr.cz           */
 /*  Description : synchronization - H20 creating              */
 /**************************************************************/
@@ -26,7 +26,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#define MAP_ANONYMOUS 0x20
 
 struct shared_t {
     int moleculeID;
