@@ -35,7 +35,7 @@ struct shared_t {
     int row;      // row counter
     long NO;
     long NH;
-} * shared;
+} *shared;
 
 FILE *file;
 sem_t *oxyMolecSem = NULL;
