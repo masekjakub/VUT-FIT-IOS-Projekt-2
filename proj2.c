@@ -241,6 +241,7 @@ void handleHydrogen(int id, int TI) {
     sem_post(oxygenSem);
     return;
 }
+
 /**
  * @brief Main function
  *
