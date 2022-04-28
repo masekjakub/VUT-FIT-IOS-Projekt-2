@@ -6,6 +6,17 @@
 /*  Description : synchronization - H20 creating              */
 /**************************************************************/
 
+ /**
+ * @file proj2.c
+ * @author Jakub Mašek (xmasek19@stud.fit.vutbr.cz)
+ * @brief VUT-FIT-IOS-Projekt 2 (synchronization)
+ * @version 0.1
+ * @date 2022-04-28
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+
 #include <fcntl.h>
 #include <semaphore.h>
 #include <stdio.h>
@@ -21,7 +32,7 @@ struct shared_t {
     int moleculeID;
     int NoOUsed;  // number of oxygens already used for creating molecules
     int NoHUsed;  // number of hydrogens already used for creating molecules
-    int row;
+    int row;      // row counter
     long NO;
     long NH;
 } * shared;
@@ -161,7 +172,7 @@ void syncPrintMolecule(char string[], struct shared_t *shared, int atomID) {
  * @brief Handle hydrogen process
  *
  * @param id ID of atom
- * @param TI Max time to initial atom
+ * @param TI Max time to init atom
  * @param TB Max time to create melecule
  */
 void handleOxygen(int id, int TI, int TB) {
@@ -209,7 +220,7 @@ void handleOxygen(int id, int TI, int TB) {
  * @brief Handle hydrogen process
  *
  * @param id ID of atom
- * @param TI Max time to initial atom
+ * @param TI Max time to init atom
  */
 void handleHydrogen(int id, int TI) {
     syncPrintAtom("%d: H %d: started\n", shared, id);
