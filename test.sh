@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "TESTING..."
 PARAM=$1
-PROCCOUNT=$2
+PROCCOUNT=$(($2-1))
 for i in $(seq "$PARAM")
 do
     ./proj2 3 5 0 0
@@ -43,8 +43,8 @@ for i in $(seq "$PARAM")
 do
     ti=$(($RANDOM%1001))
     tb=$(($RANDOM%1001))
-    no=$(($RANDOM%$PROCCOUNT))
-    nh=$(($RANDOM%$PROCCOUNT))
+    no=$((($RANDOM%$PROCCOUNT)+1))
+    nh=$((($RANDOM%$PROCCOUNT)+1))
     ./proj2 $no $nh $ti $tb
     wait $!
    RES=$(cat proj2.out | tr -d : | awk -F' ' -v creating=0 -v created=0 -v row=0 '{

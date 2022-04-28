@@ -105,6 +105,22 @@ int isValidTime(int time) {
 }
 
 /**
+ * @brief Validates atom count
+ *
+ * @param time Count to be validated
+ * @return int error -> 1 / valid -> 0
+ */
+int isValidCount(int count)
+{
+    if (count > 0)
+    {
+        return 1;
+    }
+    fprintf(stderr, "Invalid count of atom: %d.\n", count);
+    return 0;
+}
+
+/**
  * @brief Init semaphore
  *
  * @param sem Semaphore to be initialized
@@ -112,7 +128,7 @@ int isValidTime(int time) {
  * @param initState Semaphore starting state
  */
 void initSem(sem_t **sem, char *name, int initState) {
-    char string[50];
+    char string[35];
     strcpy(string, "/xmasek19.IOS.Projekt2.");
     strcat(string, name);
     if ((*sem = sem_open(string, O_CREAT | O_EXCL, 0666, initState)) == SEM_FAILED) {
@@ -130,9 +146,6 @@ void initSem(sem_t **sem, char *name, int initState) {
  * @param row Number of current row to randomize random function
  */
 void mysleep(int max, int row) {
-    if (max == 0) {
-        return;
-    }
     srand(getpid() / row);
     int time = rand() % (max + 1);
     usleep(time * 1000);
@@ -278,6 +291,11 @@ int main(int argc, char **argv) {
     // process input
     parseLong(argv[1], &NO);
     parseLong(argv[2], &NH);
+    if (!isValidCount(NO))
+        exit(1);
+    if (!isValidCount(NH))
+        exit(1);
+
     parseLong(argv[3], &TI);
     parseLong(argv[4], &TB);
     if (!isValidTime(TI))
